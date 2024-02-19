@@ -1,0 +1,16 @@
+apiServer:
+  host: golang-api
+  port: 8000
+  readTimeout: 5 # second
+  writeTimeout: 10 # second
+
+proxyServer:
+  host: 127.0.0.1
+  port: 8080
+  readTimeout: 5 # second
+  writeTimeout: 10 # second
+
+logfile:
+  path: server.log
+
+shutdownTimeout: 10 # second
