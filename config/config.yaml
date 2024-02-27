@@ -1,5 +1,5 @@
 apiServer:
-  host: golang-api
+  host: 127.0.0.1
   port: 8000
   readTimeout: 5 # second
   writeTimeout: 10 # second
@@ -12,5 +12,16 @@ proxyServer:
 
 logfile:
   path: server.log
+
+mongodb:
+  url: mongodb://127.0.0.1:27017
+  dbname: httpDb
+  colrequest: request
+  colresponse: response
+
+certificateinfo:
+  key:  certs/ca.key
+  cert: certs/ca.crt
+  subject: yngwie proxy CA
 
 shutdownTimeout: 10 # second

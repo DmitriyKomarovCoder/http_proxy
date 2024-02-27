@@ -2,22 +2,49 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"log"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"time"
 )
 
-func NewPostgresConnect(ctx context.Context, host, user, password, name string, port int) (*pgxpool.Pool, error) {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, name)
+func NewMongoConnect(ctx context.Context, url, databaseName, colRequest, colResponse string) (*mongo.Collection, *mongo.Collection, *mongo.Client, error) {
+	clientOptions := options.Client().ApplyURI(url)
+	clientOptions.SetConnectTimeout(10 * time.Second)
 
-	db, err := pgxpool.New(ctx, connStr)
-
-	err = db.Ping(context.Background())
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Println("Error while ping to DB", err)
-		return nil, err
+		return nil, nil, nil, err
 	}
 
-	return db, nil
+	colReq := client.Database(databaseName).Collection(colRequest)
+	colRes := client.Database(databaseName).Collection(colResponse)
+
+	_, err = colRes.Indexes().CreateOne(
+		ctx,
+		mongo.IndexModel{
+			Keys: bson.M{"_id": 1},
+		},
+	)
+
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	_, err = colReq.Indexes().CreateOne(
+		ctx,
+		mongo.IndexModel{
+			Keys: bson.M{"_id": 1},
+		},
+	)
+
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return colReq, colRes, client, nil
 }

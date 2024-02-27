@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"fmt"
 	"github.com/DmitriyKomarovCoder/http_proxy/common/closer"
 	customLogger "github.com/DmitriyKomarovCoder/http_proxy/common/logger"
 	"github.com/DmitriyKomarovCoder/http_proxy/config"
@@ -30,50 +32,52 @@ func main() { // TO DO: Move to internal/app
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	fmt.Println(cfg.Logfile.Path)
 	logger, err := customLogger.NewLogger(cfg.Logfile.Path)
 	if err != nil {
 		log.Fatalf("Error logger loading: %v", err)
 	}
 
-	conn, err := repository.NewPostgresConnect(ctx, cfg.Postgres.Host,
-		cfg.Postgres.User,
-		cfg.Postgres.Password,
-		cfg.Postgres.Name,
-		cfg.Postgres.Port)
+	cReq, cRes, client, err := repository.NewMongoConnect(ctx, cfg.MongoDB.Url, cfg.MongoDB.DbName, cfg.MongoDB.ColRequest, cfg.MongoDB.ColResponse)
 	if err != nil {
-		logger.Fatalf("Error connect postgres: %v", err)
+		logger.Fatalf("Error connect mongoDb: %v", err)
 	}
 
-	repo := repository.NewRepository(conn)
+	repo := repository.NewRepository(cReq, cRes)
 	logger.Info("Db Connect successfully")
 
 	useCase := usecase.NewUsecase(repo)
 	delivery := handler.NewHandler(useCase, *logger)
 	router := handler.InitRouter(delivery)
 
-	apiServer := &http.Server{ // TO DO: move init function
-		Addr:         cfg.ApiServer.Host + cfg.ApiServer.Port,
+	apiServer := &http.Server{
+		Addr:         cfg.ApiServer.Host + ":" + cfg.ApiServer.Port,
 		Handler:      router,
 		ReadTimeout:  cfg.ApiServer.ReadTimeout * time.Second,
 		WriteTimeout: cfg.ApiServer.WriteTimeout * time.Second,
 	}
 
-	proxyHandler := proxy.NewProxy(useCase, *logger)
+	ca, err := proxy.LoadCA(cfg.Certificate.Cert, cfg.Certificate.Key, cfg.Certificate.Subject)
+	if err != nil {
+		logger.Fatalf("error download CA: %v", err)
+	}
 
-	proxyServer := &http.Server{ // TO DO: move init function
-		Addr:         cfg.ProxyServer.Host + cfg.ProxyServer.Port,
+	proxyHandler := proxy.NewProxy(useCase, *logger, &ca)
+
+	proxyServer := &http.Server{
+		Addr:         cfg.ProxyServer.Host + ":" + cfg.ProxyServer.Port,
 		Handler:      proxyHandler,
 		ReadTimeout:  cfg.ProxyServer.ReadTimeout * time.Second,
 		WriteTimeout: cfg.ProxyServer.WriteTimeout * time.Second,
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)), // Disable HTTP/2.
 	}
 
 	c := &closer.Closer{}
 	c.Add(apiServer.Shutdown)
 	c.Add(proxyServer.Shutdown)
 	c.Add(func(ctx context.Context) error {
-		conn.Close()
-		return nil
+		err := client.Disconnect(ctx)
+		return err
 	})
 
 	go func() {

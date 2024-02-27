@@ -1,38 +1,48 @@
-services:
-  postgres:
-    container_name: postgres
-    image: postgres:latest
-    env_file:
-      - .env
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - ./build/sql/:/docker-entrypoint-initdb.d/
-    ports:
-      - "${DB_PORT}:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: always
-    networks:
-      - net
+version: '3.8'
 
-  golang-api:
-    container_name: golang-app
-    build:
-      dockerfile: Dockerfile
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+services:
+  mongo:
+    image: mongo
+    container_name: mongodb
     ports:
-      - "8080:8080"
-      - "8081:8081"
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - mongodb_data:/data/db
     networks:
-      - net
+      - mongo-network
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: ${DB_USER}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_CLIENT_PORT}:${DB_CLIENT_PORT}"
+    networks:
+      - mongo-network
+    depends_on:
+      - mongo
+
+networks:
+  mongo-network:
+
+volumes:
+  mongodb_data:
+#    networks:
+#      - net
+
+#  golang-api:
+#    container_name: golang-app
+#    build:
+#      dockerfile: Dockerfile
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#      redis:
+#        condition: service_healthy
+#    ports:
+#      - "8080:8080"
+#      - "8081:8081"
+#    networks:
+#      - net

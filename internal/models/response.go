@@ -1,8 +1,11 @@
 package models
 
+import "go.mongodb.org/mongo-driver/bson/primitive"
+
 type Response struct {
-	Code    string   `json:"code"`
-	Message string   `json:"message"`
-	Headers []Params `json:"headers"`
-	Body    string   `json:"body"`
+	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Code    int                `json:"code"`
+	Headers []Params           `json:"headers"`
+	Body    string             `json:"body"`
+	Cookie  []Params           `json:"cookie"`
 }
