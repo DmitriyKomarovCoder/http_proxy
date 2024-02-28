@@ -9,7 +9,13 @@ services:
     volumes:
       - mongodb_data:/data/db
     networks:
-      - mongo-network
+      - net
+    restart: always
+    healthcheck:
+      test: [ "CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   mongo-express:
     image: mongo-express
@@ -20,29 +26,29 @@ services:
     ports:
       - "${DB_CLIENT_PORT}:${DB_CLIENT_PORT}"
     networks:
-      - mongo-network
+      - net
     depends_on:
       - mongo
 
+  golang-api:
+    container_name: golang-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - mongo
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ./server.log:/app
+      - ./.env:/app/.env
+    networks:
+      - net
+
 networks:
-  mongo-network:
+  net:
+    driver: bridge
 
 volumes:
   mongodb_data:
-#    networks:
-#      - net
-
-#  golang-api:
-#    container_name: golang-app
-#    build:
-#      dockerfile: Dockerfile
-#    depends_on:
-#      postgres:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#    ports:
-#      - "8080:8080"
-#      - "8081:8081"
-#    networks:
-#      - net

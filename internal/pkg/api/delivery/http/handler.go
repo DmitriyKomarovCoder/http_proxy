@@ -71,13 +71,27 @@ func (h *Handler) Repeat(ctx *gin.Context) {
 		return
 	}
 
-	var b []byte
-	if b, err := httputil.DumpResponse(resp, false); err == nil {
+	var b = []byte{}
+	if b, err = httputil.DumpResponse(resp, true); err == nil {
 		log.Printf("target response:\n%s\n", string(b))
 	}
 	ctx.JSON(http.StatusOK, string(b))
 }
 
 func (h *Handler) Scan(ctx *gin.Context) {
+	id := ctx.Param("id")
+	scanInfo, err := h.useCase.Scan(id)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, "not found document")
+		return
+	} else if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, err)
+		return
+	}
 
+	if scanInfo {
+		ctx.JSON(http.StatusOK, "XXE - detected")
+		return
+	}
+	ctx.JSON(http.StatusOK, "XXE not found")
 }

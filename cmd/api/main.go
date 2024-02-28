@@ -11,7 +11,7 @@ import (
 	handler "github.com/DmitriyKomarovCoder/http_proxy/internal/pkg/api/delivery/http"
 	"github.com/DmitriyKomarovCoder/http_proxy/internal/pkg/api/repository"
 	"github.com/DmitriyKomarovCoder/http_proxy/internal/pkg/api/usecase"
-	"github.com/DmitriyKomarovCoder/http_proxy/internal/pkg/proxy"
+	"github.com/DmitriyKomarovCoder/http_proxy/internal/pkg/customproxy"
 	"log"
 	"net/http"
 	"os/signal"
@@ -57,12 +57,12 @@ func main() { // TO DO: Move to internal/app
 		WriteTimeout: cfg.ApiServer.WriteTimeout * time.Second,
 	}
 
-	ca, err := proxy.LoadCA(cfg.Certificate.Cert, cfg.Certificate.Key, cfg.Certificate.Subject)
+	ca, err := customproxy.LoadCA(cfg.Certificate.Cert, cfg.Certificate.Key, cfg.Certificate.Subject)
 	if err != nil {
 		logger.Fatalf("error download CA: %v", err)
 	}
 
-	proxyHandler := proxy.NewProxy(useCase, *logger, &ca)
+	proxyHandler := customproxy.NewProxy(useCase, *logger, &ca)
 
 	proxyServer := &http.Server{
 		Addr:         cfg.ProxyServer.Host + ":" + cfg.ProxyServer.Port,

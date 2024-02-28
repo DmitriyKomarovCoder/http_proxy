@@ -10,7 +10,7 @@ type Usecase interface {
 	AllRequest() ([]models.Request, error)
 	GetRequest(id string) (models.Request, error)
 	Repeat(id string) (*http.Request, error)
-	Scan(id string) error
+	Scan(id string) (bool, error)
 	SaveRequest(request *http.Request, bodyBytes []byte) (primitive.ObjectID, error)
 	SaveResponse(id primitive.ObjectID, response http.Response, body []byte) error
 }

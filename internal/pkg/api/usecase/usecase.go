@@ -1,7 +1,7 @@
 package usecase
 
 import (
-	"fmt"
+	"bytes"
 	"github.com/DmitriyKomarovCoder/http_proxy/internal/models"
 	"github.com/DmitriyKomarovCoder/http_proxy/internal/pkg/api"
 	"github.com/DmitriyKomarovCoder/http_proxy/internal/pkg/utils"
@@ -38,27 +38,55 @@ func (u *Usecase) Repeat(id string) (*http.Request, error) {
 		body = strings.NewReader(modelRepeat.Body)
 	}
 
-	url := fmt.Sprintf("%s://%s%s", modelRepeat.Scheme, modelRepeat.Host, modelRepeat.Path)
-	for i, v := range modelRepeat.GetParams {
-		if i == 0 {
-			url += "?"
-		}
-		url += v.Key + "=" + v.Value
-	}
-
+	url := utils.CreateURL(modelRepeat)
 	newRequest, err := http.NewRequest(modelRepeat.Method, url, body)
 
-	for key, values := range modelRepeat.Headers {
-		for _, value := range values {
-			masHeaders = append(masHeaders, models.Params{Key: key, Value: value})
-		}
-	}
+	utils.AddHeaders(newRequest, modelRepeat.Headers)
+	utils.AddCookies(newRequest, modelRepeat.Cookie)
+	utils.AddPostParams(newRequest, modelRepeat.PostParams)
 
 	return newRequest, nil
 }
 
-func (u *Usecase) Scan(id string) error {
-	return nil
+func (u *Usecase) Scan(id string) (bool, error) {
+	modelRepeat, err := u.GetRequest(id)
+	if err != nil {
+		return true, nil
+	}
+
+	var body io.Reader
+	if strings.Contains(modelRepeat.Body, "<?xml") {
+		modelRepeat.Body = utils.XmlPayload
+	}
+
+	if modelRepeat.Body != "" {
+		body = strings.NewReader(modelRepeat.Body)
+	}
+
+	url := utils.CreateURL(modelRepeat)
+	newRequest, err := http.NewRequest(modelRepeat.Method, url, body)
+
+	utils.AddHeaders(newRequest, modelRepeat.Headers)
+	utils.AddCookies(newRequest, modelRepeat.Cookie)
+	utils.AddPostParams(newRequest, modelRepeat.PostParams)
+
+	client := http.Client{}
+
+	resp, err := client.Do(newRequest)
+	if err != nil {
+		return false, err
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+	bodyString := string(bodyBytes)
+	if bytes.Contains([]byte(bodyString), []byte("root:")) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (u *Usecase) SaveRequest(request *http.Request, bodyBytes []byte) (primitive.ObjectID, error) {
