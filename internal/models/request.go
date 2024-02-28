@@ -4,6 +4,7 @@ import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type Request struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Scheme     string             `json:"scheme"`
 	Method     string             `json:"method"`
 	Path       string             `json:"path"`
 	Host       string             `json:"host"`

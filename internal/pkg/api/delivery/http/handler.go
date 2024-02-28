@@ -6,7 +6,9 @@ import (
 	"github.com/DmitriyKomarovCoder/http_proxy/internal/pkg/api"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log"
 	"net/http"
+	"net/http/httputil"
 )
 
 type Handler struct {
@@ -49,7 +51,31 @@ func (h *Handler) GetRequest(ctx *gin.Context) {
 }
 
 func (h *Handler) Repeat(ctx *gin.Context) {
+	id := ctx.Param("id")
+	repeat, err := h.useCase.Repeat(id)
 
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, "not found document")
+		return
+	} else if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, err)
+		return
+	}
+	client := http.Client{}
+
+	resp, err := client.Do(repeat)
+	if err != nil {
+		h.log.Println("error sending request to target:", err)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, err)
+
+		return
+	}
+
+	var b []byte
+	if b, err := httputil.DumpResponse(resp, false); err == nil {
+		log.Printf("target response:\n%s\n", string(b))
+	}
+	ctx.JSON(http.StatusOK, string(b))
 }
 
 func (h *Handler) Scan(ctx *gin.Context) {
